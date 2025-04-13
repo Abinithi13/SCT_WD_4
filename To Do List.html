@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>To-Do List</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      transition: background 0.3s, color 0.3s;
+      background: #f9f9f9;
+      color: #333;
+    }
+    .dark-mode {
+      background: #1e1e1e;
+      color: #f0f0f0;
+    }
+    .container {
+      max-width: 700px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin: 20px 0;
+    }
+    .input-section, .filters {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    input, select, textarea, button {
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      border: none;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .task {
+      background: #ffffff;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    .task.completed {
+      background: #d4edda;
+      text-decoration: line-through;
+    }
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .task-details {
+      font-size: 0.9rem;
+      margin-top: 5px;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .toggle-mode {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 6px 12px;
+      border-radius: 5px;
+      background: #222;
+      color: white;
+      cursor: pointer;
+    }
+    .dark-mode .task {
+      background: #2e2e2e;
+      color: #ddd;
+    }
+    .dark-mode input, .dark-mode select, .dark-mode textarea {
+      background: #444;
+      color: #eee;
+      border: 1px solid #666;
+    }
+    .subtask {
+      padding-left: 20px;
+      font-style: italic;
+      margin-top: 5px;
+    }
+    @media (max-width: 600px) {
+      .task-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="toggle-mode" onclick="toggleTheme()">🌙</div>
+  <div class="container">
+    <h1>📝 To-Do List</h1>
+
+    <div class="input-section">
+      <input type="text" id="taskInput" placeholder="Task description">
+      <input type="datetime-local" id="startDate" placeholder="Start date">
+      <input type="datetime-local" id="dueDate" placeholder="Due date">
+      <input type="text" id="subtaskInput" placeholder="Optional Subtasks (comma separated)">
+      <select id="priority">
+        <option value="" disabled selected>Priority</option>
+        <option value="High">🔥 High</option>
+        <option value="Medium">⚖️ Medium</option>
+        <option value="Low">🧊 Low</option>
+      </select>
+      <select id="category">
+        <option value="" disabled selected>Category</option>
+        <option value="Personal">👤 Personal</option>
+        <option value="Professional">💼 Professional</option>
+      </select>
+      <button onclick="addTask()">➕ Add Task</button>
+    </div>
+
+    <div class="filters">
+      <input type="text" id="searchInput" placeholder="Search task..." oninput="renderTasks()">
+      <select id="filterStatus" onchange="renderTasks()">
+        <option value="all">All</option>
+        <option value="completed">Completed</option>
+        <option value="pending">Pending</option>
+      </select>
+    </div>
+
+    <div id="taskList"></div>
+  </div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+    let isDark = false;
+
+    function saveTasks() {
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+    }
+
+    function renderTasks() {
+      const taskList = document.getElementById("taskList");
+      const search = document.getElementById("searchInput").value.toLowerCase();
+      const filter = document.getElementById("filterStatus").value;
+      taskList.innerHTML = "";
+
+      tasks.filter(task => {
+        const matchSearch = task.text.toLowerCase().includes(search);
+        if (filter === "completed") return task.completed && matchSearch;
+        if (filter === "pending") return !task.completed && matchSearch;
+        return matchSearch;
+      }).forEach((task, index) => {
+        const div = document.createElement("div");
+        div.className = `task ${task.completed ? 'completed' : ''}`;
+
+        const header = document.createElement("div");
+        header.className = "task-header";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = task.completed;
+        checkbox.onchange = () => {
+          task.completed = checkbox.checked;
+          saveTasks();
+          renderTasks();
+        };
+
+        const title = document.createElement("span");
+        title.textContent = task.text;
+
+        header.appendChild(checkbox);
+        header.appendChild(title);
+
+        const details = document.createElement("div");
+        details.className = "task-details";
+        details.innerHTML = `
+          🗓️ Start: ${task.startDate || '-'}<br>
+          ⏰ Due: ${task.dueDate || '-'}<br>
+          🔥 Priority: ${task.priority} | 📂 ${task.category}
+        `;
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "Edit";
+        editBtn.onclick = () => {
+          const newText = prompt("Edit task:", task.text);
+          if (newText) {
+            task.text = newText.trim();
+            saveTasks();
+            renderTasks();
+          }
+        };
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "Delete";
+        deleteBtn.onclick = () => {
+          if (confirm("Delete this task?")) {
+            tasks.splice(index, 1);
+            saveTasks();
+            renderTasks();
+          }
+        };
+
+        actions.append(editBtn, deleteBtn);
+
+        div.append(header, details);
+
+        if (task.subtasks && task.subtasks.length) {
+          task.subtasks.forEach(sub => {
+            const subEl = document.createElement("div");
+            subEl.className = "subtask";
+            subEl.textContent = `🔹 ${sub}`;
+            div.appendChild(subEl);
+          });
+        }
+
+        div.append(actions);
+        taskList.appendChild(div);
+      });
+    }
+
+    function addTask() {
+      const text = document.getElementById("taskInput").value.trim();
+      const startDate = document.getElementById("startDate").value;
+      const dueDate = document.getElementById("dueDate").value;
+      const priority = document.getElementById("priority").value;
+      const category = document.getElementById("category").value;
+      const subtasksRaw = document.getElementById("subtaskInput").value.trim();
+
+      if (!text || !startDate || !dueDate || !priority || !category) {
+        alert("Please fill in all fields.");
+        return;
+      }
+
+      const subtasks = subtasksRaw ? subtasksRaw.split(",").map(s => s.trim()) : [];
+
+      tasks.push({
+        text,
+        startDate,
+        dueDate,
+        priority,
+        category,
+        subtasks,
+        completed: false
+      });
+
+      saveTasks();
+      renderTasks();
+
+      // Reset form
+      document.getElementById("taskInput").value = "";
+      document.getElementById("startDate").value = "";
+      document.getElementById("dueDate").value = "";
+      document.getElementById("priority").selectedIndex = 0;
+      document.getElementById("category").selectedIndex = 0;
+      document.getElementById("subtaskInput").value = "";
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("dark-mode");
+      isDark = !isDark;
+    }
+
+    renderTasks();
+  </script>
+</body>
+</html>
